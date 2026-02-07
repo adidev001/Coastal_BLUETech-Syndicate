@@ -1,0 +1,86 @@
+# Product Requirements Document (PRD) - Coastal Pollution Monitor
+
+## 1. Introduction
+**Coastal Pollution Monitor** is a citizen science platform designed to empower individuals to report coastal pollution, facilitating cleanup efforts by NGOs and authorities. The platform leverages AI for pollution classification and gamification to encourage user participation.
+
+### 1.1 Goal
+To create a comprehensive, user-friendly system for monitoring and reporting coastal pollution, enabling data-driven cleanup initiatives and fostering a community of environmentally conscious citizens.
+
+### 1.2 Scope
+The scope includes a web application with:
+*   User Authentication & Profiles
+*   AI-powered Pollution Reporting (Image Upload & Classification)
+*   Interactive Pollution Map
+*   Gamification System (Points, Badges, Leaderboards - implied)
+*   NGO Directory & Connection
+*   Admin Dashboard for Report Management
+
+## 2. User Personas
+*   **The Eco-Warrior (Reporter)**: Active citizen who visits coasts frequently. Wants an easy way to report pollution and see their impact. Motivated by gamification and seeing cleanups happen.
+*   **The NGO Coordinator**: Represents an environmental organization. Needs to see where pollution is concentrated to plan cleanup drives. range. Wants to connect with reporters.
+*   **The Administrator**: Manages the platform, verifies reports, manages users and NGOs, and ensures data integrity.
+
+## 3. Functional Requirements
+
+### 3.1 User Authentication
+*   **Registration**: Users can sign up with email and password.
+*   **Login**: Secure login with JWT feedback.
+*   **Profile Management**: View and edit profile details, view earned badgers and points.
+
+### 3.2 Pollution Reporting (Core Feature)
+*   **Image Upload**: Users can upload images of pollution.
+*   **AI Classification**: The system automatically classifies the pollution into 8 categories (cardboard, clean_water, glass, marine_trash, metal, oil_spill, paper, plastic) using a pre-trained Keras model.
+*   **Location Tagging**:
+    *   Automatic extraction of GPS coordinates from image EXIF data.
+    *   Manual selection of location on a map if EXIF data is missing.
+*   **Description**: Users can add a text description.
+*   **Submission**: Report is saved to the database with status 'pending'.
+
+### 3.3 Interactive Map
+*   **Visualization**: Display all verified pollution reports on a map.
+*   **Filtering**: Filter reports by pollution type, status (pending/resolved), and date.
+*   **Details**: Click on a marker to view report details (image, type, description).
+
+### 3.4 Gamification
+*   **Points System**: Users earn points for approved reports.
+*   **Tier System**: Users progress through tiers (Rookie, Bronze, Silver, Gold, Platinum, Super Hero) based on points.
+*   **Visual Feedback**: Badges and progress bars in the user profile.
+
+### 3.5 NGO Directory
+*   **Listing**: A searchable directory of registered NGOs.
+*   **Details**: View NGO mission, contact info, and website.
+*   **Connection**: (Future) Facilitate direct messaging or volunteer sign-up.
+
+### 3.6 Admin Dashboard
+*   **Overview**: Statistics on total reports, pollution types, and user activity.
+*   **Report Management**: Table view of all reports. Admins can:
+    *   Verify/Reject reports.
+    *   Update status (Pending -> Forwarded -> Resolved).
+    *   Delete invalid reports.
+*   **NGO Management**: Add/Edit/Remove NGO listings.
+
+## 4. Non-Functional Requirements
+*   **Performance**: Map should load markers efficiently. Image upload and classification should be fast (< 5 seconds).
+*   **Security**: Secure storage of passwords (hashing). Validated inputs to prevent injection attacks. Secure handling of uploaded files.
+*   **Reliability**: System should handle network interruptions gracefully during upload.
+*   **Scalability**: Backend should be able to handle increasing numbers of reports and users. Database schema should support growth.
+*   **Usability**: Mobile-responsive design is critical as most reports will be made from mobile devices at the coast.
+
+## 5. UI/UX Guidelines
+*   **Aesthetics**: "Neon Glassmorphism" or clean, modern tech-for-good aesthetic. Water/Ocean themes.
+*   **Navigation**: Simple, intuitive navigation (Bottom bar for mobile, Top bar for desktop).
+*   **Feedback**: Immediate visual feedback for actions (upload success, error messages, point gain).
+
+## 6. Technical Stack
+*   **Frontend**: React, Tailwind CSS (or custom CSS), Leaflet (Maps), Axios.
+*   **Backend**: FastAPI, Python, TensorFlow/Keras (ML), Pydantic.
+*   **Database**: PostgreSQL (Production) / SQLite (Dev).
+*   **Storage**: Cloudinary (Production) / Local Filesystem (Dev).
+*   **DevOps**: Docker, Docker Compose.
+
+## 7. Future Roadmap
+*   **Mobile App**: Native Android/iOS app for better camera and GPS integration.
+*   **Real-time Alerts**: Notify NGOs of new high-severity reports (e.g., oil spills) instantly.
+*   **Social Sharing**: Allow users to share their reports and badges on social media.
+*   **Cleanup Events**: Feature for NGOs to organize and announce cleanup events on the map.
+*   **Advanced AI**: Detection of multiple pollution types in a single image.
