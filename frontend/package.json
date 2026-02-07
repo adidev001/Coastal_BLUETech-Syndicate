@@ -1,0 +1,42 @@
+{
+    "name": "coastal-pollution-monitor",
+    "version": "1.0.0",
+    "description": "Frontend for Coastal Pollution Monitoring application",
+    "private": true,
+    "dependencies": {
+        "axios": "^1.6.2",
+        "framer-motion": "^12.33.0",
+        "html2canvas": "^1.4.1",
+        "jwt-decode": "^4.0.0",
+        "leaflet": "^1.9.4",
+        "lucide-react": "^0.563.0",
+        "react": "^18.2.0",
+        "react-dom": "^18.2.0",
+        "react-leaflet": "^4.2.1",
+        "react-router-dom": "^6.20.0",
+        "react-scripts": "5.0.1"
+    },
+    "scripts": {
+        "start": "react-scripts start",
+        "build": "react-scripts build",
+        "test": "react-scripts test",
+        "eject": "react-scripts eject"
+    },
+    "eslintConfig": {
+        "extends": [
+            "react-app"
+        ]
+    },
+    "browserslist": {
+        "production": [
+            ">0.2%",
+            "not dead",
+            "not op_mini all"
+        ],
+        "development": [
+            "last 1 chrome version",
+            "last 1 firefox version",
+            "last 1 safari version"
+        ]
+    }
+}

@@ -1,0 +1,22 @@
+{
+  "classes": [
+    "cardboard",
+    "clean_water",
+    "glass",
+    "marine_trash",
+    "metal",
+    "oil_spill",
+    "paper",
+    "plastic"
+  ],
+  "class_to_idx": {
+    "cardboard": 0,
+    "clean_water": 1,
+    "glass": 2,
+    "marine_trash": 3,
+    "metal": 4,
+    "oil_spill": 5,
+    "paper": 6,
+    "plastic": 7
+  }
+}
