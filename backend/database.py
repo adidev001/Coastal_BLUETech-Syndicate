@@ -135,7 +135,7 @@ def init_database():
             INSERT INTO users (full_name, email, password_hash, role)
             VALUES (?, ?, ?, ?)
         """, ("System Admin", "admin@coastal.com", admin_hash, "admin"))
-        print("✅ Default admin user created (admin@coastal.com / admin123)")
+        print("[OK] Default admin user created (admin@coastal.com / admin123)")
     
     # Insert sample NGOs if none exist
     cursor.execute("SELECT COUNT(*) FROM ngos")
@@ -162,11 +162,11 @@ def init_database():
             INSERT INTO ngos (name, email, phone, address, specialization, description, website, logo_url)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, sample_ngos)
-        print("✅ Sample NGOs inserted")
+        print("[OK] Sample NGOs inserted")
     
     conn.commit()
     conn.close()
-    print("✅ Database initialized successfully!")
+    print("[OK] Database initialized successfully!")
 
 
 # ==================== USER OPERATIONS ====================

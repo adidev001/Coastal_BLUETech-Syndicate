@@ -17,10 +17,10 @@ try:
     model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
     processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
     USE_CLIP = True
-    print("✅ CLIP model loaded successfully!")
+    print("[OK] CLIP model loaded successfully!")
 except ImportError:
     USE_CLIP = False
-    print("⚠️ CLIP not available. Installing...")
+    print("[WARNING] CLIP not available. Installing...")
 
 CATEGORIES = ['plastic', 'oil_spill', 'other_solid_waste', 'marine_debris', 'no_waste']
 
@@ -40,21 +40,24 @@ def classify_pollution(image_path: str) -> tuple:
         try:
             image = Image.open(image_path).convert("RGB")
             
-            # Labels designed to only match OBVIOUS pollution
-            # Order: plastic, oil_spill, solid_waste, marine_debris, no_waste
+            # Labels designed for maximum contrast between categories
+            # More specific and mutually exclusive descriptions
             labels = [
-                "plastic bottles and plastic bags littering a beach with visible garbage",
-                "oil spill petroleum contamination dark brown black murky polluted water",
-                "garbage pile trash heap rubbish dump on sandy beach",
-                "fishing nets ropes tangled in water or on beach shore",
-                "natural clean ocean water waves sea view without any garbage or pollution"
+                "plastic waste pollution: plastic bottles, bags, wrappers, and plastic debris scattered on beach sand",
+                "oil spill contamination: dark black or brown oil slick floating on water surface, petroleum pollution",
+                "general garbage and trash pile: mixed solid waste, rubbish, litter on coastal area",
+                "marine debris: abandoned fishing nets, ropes, buoys, and fishing equipment in water",
+                "clean natural environment: pristine beach, clear blue ocean water, no visible trash or pollution"
             ]
             
             inputs = processor(text=labels, images=image, return_tensors="pt", padding=True)
             
             with torch.no_grad():
                 outputs = model(**inputs)
-                probs = outputs.logits_per_image.softmax(dim=1)[0]
+                # Apply temperature scaling to sharpen probabilities (lower = sharper)
+                temperature = 0.5
+                logits = outputs.logits_per_image / temperature
+                probs = logits.softmax(dim=1)[0]
             
             # Get all probabilities
             all_probs = probs.tolist()
@@ -73,26 +76,28 @@ def classify_pollution(image_path: str) -> tuple:
             
             predicted = category_map[idx]
             
-            # CONFIDENCE THRESHOLD: If confidence is below 85% for pollution categories,
-            # default to no_waste (to avoid false positives)
-            if predicted != "no_waste" and confidence < 0.85:
-                # Check if no_waste probability is reasonable (>15%)
-                if no_waste_prob > 0.15:
-                    print(f"🧠 Low confidence ({confidence*100:.1f}%) - defaulting to no_waste")
-                    predicted = "no_waste"
-                    confidence = no_waste_prob
+            # Convert confidence to human-readable level
+            if confidence >= 0.75:
+                confidence_level = "high"
+            elif confidence >= 0.50:
+                confidence_level = "medium"
+            else:
+                confidence_level = "low"
             
-            print(f"🧠 CLIP Prediction: {predicted} ({confidence*100:.1f}%)")
+            # Flag for manual review: no_waste with low confidence should be checked
+            needs_review = (predicted == "no_waste" and confidence < 0.70)
             
-            return predicted, round(confidence, 4)
+            print(f"[CLIP] Prediction: {predicted} ({confidence_level} chance)")
+            
+            return predicted, round(confidence, 4), confidence_level, needs_review
             
         except Exception as e:
             print(f"CLIP Error: {e}")
-            return "other_solid_waste", 0.5
+            return "other_solid_waste", 0.5, "medium", False
     
     else:
         # Fallback if CLIP fails (should not happen after install)
-        return "other_solid_waste", 0.5
+        return "other_solid_waste", 0.5, "medium", False
 
 
 def extract_gps_from_exif(image_path: str) -> dict:
@@ -160,11 +165,13 @@ def get_pollution_info(ptype: str) -> dict:
 
 def analyze_image(image_path: str) -> dict:
     """Wrapper for main classification logic."""
-    label, confidence = classify_pollution(image_path)
+    label, confidence, confidence_level, needs_review = classify_pollution(image_path)
     info = get_pollution_info(label)
     return {
         "label": label,
         "confidence": confidence,
+        "confidence_level": confidence_level,  # "low", "medium", "high"
+        "needs_review": needs_review,  # True if admin should check
         "pollution_name": info["name"],
         "pollution_icon": info["icon"],
         "pollution_color": info["color"]
