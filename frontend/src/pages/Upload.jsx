@@ -15,6 +15,12 @@ const Upload = ({ apiUrl = 'http://localhost:8000' }) => {
     const [error, setError] = useState(null);
     const [locationSource, setLocationSource] = useState(null);
     const [isExtracting, setIsExtracting] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
+
+    // Camera State
+    const [showCamera, setShowCamera] = useState(false);
+    const videoRef = useRef(null);
+    const streamRef = useRef(null);
 
     // Refs
     const fileInputRef = useRef(null);
@@ -23,10 +29,82 @@ const Upload = ({ apiUrl = 'http://localhost:8000' }) => {
     // Handlers
     const handleFileChange = (e) => {
         const file = e.target.files[0];
+        handleFileSelection(file);
+    };
+
+    const handleFileSelection = (file) => {
         if (file) {
             setSelectedFile(file);
             setImagePreview(URL.createObjectURL(file));
             extractGPS(file);
+        }
+    };
+
+    // Drag and Drop Handlers
+    const handleDragOver = (e) => {
+        e.preventDefault();
+        setIsDragging(true);
+    };
+
+    const handleDragEnter = (e) => {
+        e.preventDefault();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = (e) => {
+        e.preventDefault();
+        setIsDragging(false);
+    };
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        setIsDragging(false);
+        const file = e.dataTransfer.files[0];
+        if (file && file.type.startsWith('image/')) {
+            handleFileSelection(file);
+        }
+    };
+
+    // Camera Handlers
+    const startCamera = async () => {
+        setError(null);
+        setShowCamera(true);
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment' }
+            });
+            streamRef.current = stream;
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+            }
+        } catch (err) {
+            console.error("Camera Error:", err);
+            setError("Could not access camera. Please check permissions.");
+            setShowCamera(false);
+        }
+    };
+
+    const stopCamera = () => {
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+        }
+        setShowCamera(false);
+    };
+
+    const capturePhoto = () => {
+        if (videoRef.current) {
+            const canvas = document.createElement('canvas');
+            canvas.width = videoRef.current.videoWidth;
+            canvas.height = videoRef.current.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+
+            canvas.toBlob((blob) => {
+                const file = new File([blob], "camera_capture.jpg", { type: "image/jpeg" });
+                handleFileSelection(file);
+                stopCamera();
+            }, 'image/jpeg');
         }
     };
 
@@ -187,7 +265,7 @@ const Upload = ({ apiUrl = 'http://localhost:8000' }) => {
                             <div style={styles.formGroup}>
                                 <label style={styles.label}>1. Snap or Upload Photo</label>
                                 <div style={styles.uploadOptions}>
-                                    <button type="button" onClick={() => cameraInputRef.current.click()} style={styles.optBtn}>
+                                    <button type="button" onClick={startCamera} style={styles.optBtn}>
                                         <span>📷</span> Camera
                                     </button>
                                     <button type="button" onClick={() => fileInputRef.current.click()} style={styles.optBtn}>
@@ -198,10 +276,17 @@ const Upload = ({ apiUrl = 'http://localhost:8000' }) => {
                                 <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} style={{ display: 'none' }} onChange={handleFileChange} />
                                 <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} />
 
-                                <div style={{
-                                    ...styles.dropZone,
-                                    ...(imagePreview ? styles.dropZoneActive : {})
-                                }}>
+                                <div
+                                    style={{
+                                        ...styles.dropZone,
+                                        ...(imagePreview ? styles.dropZoneActive : {}),
+                                        ...(isDragging ? styles.dropZoneDrag : {})
+                                    }}
+                                    onDragOver={handleDragOver}
+                                    onDragEnter={handleDragEnter}
+                                    onDragLeave={handleDragLeave}
+                                    onDrop={handleDrop}
+                                >
                                     {imagePreview ? (
                                         <div style={styles.previewContainer}>
                                             <img src={imagePreview} alt="Preview" style={styles.preview} />
@@ -209,8 +294,8 @@ const Upload = ({ apiUrl = 'http://localhost:8000' }) => {
                                         </div>
                                     ) : (
                                         <div style={styles.dropContent}>
-                                            <div style={styles.dropIcon}>☁️</div>
-                                            <p>Tap camera to take photo or gallery to choose</p>
+                                            <div style={styles.dropIcon}>{isDragging ? '📂' : '☁️'}</div>
+                                            <p>{isDragging ? 'Drop image here' : 'Drag & drop, tap camera, or choose from gallery'}</p>
                                         </div>
                                     )}
                                 </div>
@@ -254,6 +339,20 @@ const Upload = ({ apiUrl = 'http://localhost:8000' }) => {
                         </form>
                     </div>
                 )}
+
+                {/* Camera Modal */}
+                {showCamera && (
+                    <div style={styles.cameraModal}>
+                        <div style={styles.cameraContent}>
+                            <video ref={videoRef} autoPlay playsInline style={styles.videoPreview}></video>
+                            <div style={styles.cameraControls}>
+                                <button type="button" onClick={stopCamera} style={styles.closeCamBtn}>Close</button>
+                                <button type="button" onClick={capturePhoto} style={styles.captureBtn}>⚪</button>
+                                <div style={{ width: '60px' }}></div> {/* Spacer for alignment */}
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -273,8 +372,9 @@ const styles = {
     uploadOptions: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' },
     optBtn: { padding: '0.75rem', borderRadius: '12px', border: '2px solid #e2e8f0', background: 'white', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' },
 
-    dropZone: { border: '2px dashed #cbd5e1', borderRadius: '1.25rem', padding: '1.5rem', background: '#f1f5f9', minHeight: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center' },
+    dropZone: { border: '2px dashed #cbd5e1', borderRadius: '1.25rem', padding: '1.5rem', background: '#f1f5f9', minHeight: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', transition: 'all 0.2s' },
     dropZoneActive: { borderStyle: 'solid', borderColor: '#0ea5e9', background: '#f0f9ff' },
+    dropZoneDrag: { borderColor: '#10b981', background: '#ecfdf5', transform: 'scale(1.02)' },
     dropContent: { color: '#94a3b8' },
     dropIcon: { fontSize: '3rem', marginBottom: '1rem' },
 
@@ -308,7 +408,15 @@ const styles = {
     resSmallVal: { fontWeight: 800, fontSize: '1rem' },
 
     actionGroup: { display: 'flex', gap: '0.75rem', flexWrap: 'wrap' },
-    secondaryBtn: { padding: '1rem', borderRadius: '0.75rem', border: '2px solid #e2e8f0', color: '#1e293b', textDecoration: 'none', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, minWidth: '150px' }
+    secondaryBtn: { padding: '1rem', borderRadius: '0.75rem', border: '2px solid #e2e8f0', color: '#1e293b', textDecoration: 'none', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, minWidth: '150px' },
+
+    // Camera Modal Styles
+    cameraModal: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'black', zIndex: 10000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' },
+    cameraContent: { width: '100%', height: '100%', display: 'flex', flexDirection: 'column', position: 'relative' },
+    videoPreview: { width: '100%', height: '100%', objectFit: 'cover' },
+    cameraControls: { position: 'absolute', bottom: '2rem', left: 0, right: 0, display: 'flex', justifyContent: 'space-around', alignItems: 'center', padding: '0 2rem' },
+    captureBtn: { width: '70px', height: '70px', borderRadius: '50%', background: 'white', border: '4px solid rgba(255,255,255,0.5)', cursor: 'pointer', boxShadow: '0 0 20px rgba(0,0,0,0.3)' },
+    closeCamBtn: { color: 'white', background: 'rgba(0,0,0,0.5)', border: 'none', padding: '0.5rem 1rem', borderRadius: '20px', fontWeight: 600, cursor: 'pointer' }
 };
 
 export default Upload;
