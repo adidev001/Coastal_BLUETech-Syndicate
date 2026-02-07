@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { InfinityLoader } from '../components/ui/loader-13';
@@ -11,11 +11,30 @@ const Upload = ({ apiUrl = 'http://localhost:8000' }) => {
     const [longitude, setLongitude] = useState('');
     const [description, setDescription] = useState('');
     const [isUploading, setIsUploading] = useState(false);
+
+    // Inject custom styles for animations
+    const animationStyles = `
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        @keyframes pulse-blue {
+            0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+        }
+        .loader {
+            display: inline-block;
+            animation: spin 1s linear infinite;
+        }
+    `;
     const [uploadResult, setUploadResult] = useState(null);
     const [error, setError] = useState(null);
     const [locationSource, setLocationSource] = useState(null);
     const [isExtracting, setIsExtracting] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
+    const [isGettingLocation, setIsGettingLocation] = useState(false);
+    const [locationAddress, setLocationAddress] = useState('');
 
     // Camera State
     const [showCamera, setShowCamera] = useState(false);
@@ -25,6 +44,15 @@ const Upload = ({ apiUrl = 'http://localhost:8000' }) => {
     // Refs
     const fileInputRef = useRef(null);
     const cameraInputRef = useRef(null);
+
+    // Cleanup camera on unmount
+    useEffect(() => {
+        return () => {
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach(track => track.stop());
+            }
+        };
+    }, []);
 
     // Handlers
     const handleFileChange = (e) => {
@@ -108,6 +136,20 @@ const Upload = ({ apiUrl = 'http://localhost:8000' }) => {
         }
     };
 
+    const fetchLocationName = async (lat, lon) => {
+        try {
+            const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+            const data = await response.json();
+            if (data && data.display_name) {
+                // Shorten the address for display
+                const parts = data.display_name.split(',').slice(0, 3).join(',');
+                setLocationAddress(parts);
+            }
+        } catch (error) {
+            console.error("Error fetching location name:", error);
+        }
+    };
+
     const extractGPS = async (file) => {
         setIsExtracting(true);
         const formData = new FormData();
@@ -117,9 +159,12 @@ const Upload = ({ apiUrl = 'http://localhost:8000' }) => {
             const res = await fetch(`${apiUrl}/api/extract-gps`, { method: 'POST', body: formData });
             const data = await res.json();
             if (data.success && data.has_gps) {
-                setLatitude(data.latitude.toFixed(6));
-                setLongitude(data.longitude.toFixed(6));
+                const lat = data.latitude.toFixed(6);
+                const lon = data.longitude.toFixed(6);
+                setLatitude(lat);
+                setLongitude(lon);
                 setLocationSource('exif');
+                fetchLocationName(lat, lon);
             }
         } catch (err) {
             console.error('GPS extraction failed');
@@ -134,14 +179,22 @@ const Upload = ({ apiUrl = 'http://localhost:8000' }) => {
             return;
         }
 
+        setIsGettingLocation(true);
         navigator.geolocation.getCurrentPosition(
             (pos) => {
-                setLatitude(pos.coords.latitude.toFixed(6));
-                setLongitude(pos.coords.longitude.toFixed(6));
+                const lat = pos.coords.latitude.toFixed(6);
+                const lon = pos.coords.longitude.toFixed(6);
+                setLatitude(lat);
+                setLongitude(lon);
                 setLocationSource('browser');
                 setError(null);
+                fetchLocationName(lat, lon);
+                setIsGettingLocation(false);
             },
-            (err) => setError("Could not get location. Please enter manually.")
+            (err) => {
+                setError("Could not get location. Please enter manually.");
+                setIsGettingLocation(false);
+            }
         );
     };
 
@@ -200,6 +253,7 @@ const Upload = ({ apiUrl = 'http://localhost:8000' }) => {
         <div style={styles.page}>
             <div style={styles.container}>
                 <div style={styles.header} className="animate-fade-in">
+                    <style>{animationStyles}</style>
                     <h1 style={styles.title}>Submit Report</h1>
                     <p style={styles.subtitle}>Our AI will analyze your photo and map the findings</p>
                 </div>
@@ -307,9 +361,26 @@ const Upload = ({ apiUrl = 'http://localhost:8000' }) => {
                                 <div style={styles.locRow}>
                                     <input placeholder="Lat" value={latitude} readOnly style={styles.input} />
                                     <input placeholder="Lng" value={longitude} readOnly style={styles.input} />
-                                    <button type="button" onClick={getBrowserLocation} style={styles.gpsBtn}>📍 GPS</button>
+                                    <button
+                                        type="button"
+                                        onClick={getBrowserLocation}
+                                        style={{
+                                            ...styles.gpsBtn,
+                                            ...(isGettingLocation ? styles.gpsBtnLoading : {})
+                                        }}
+                                        disabled={isGettingLocation}
+                                    >
+                                        {isGettingLocation ? (
+                                            <span className="loader">↻</span>
+                                        ) : '📍 GPS'}
+                                    </button>
                                 </div>
-                                {locationSource && (
+                                {locationAddress && (
+                                    <div style={styles.addressTag}>
+                                        📍 {locationAddress}
+                                    </div>
+                                )}
+                                {locationSource && !locationAddress && (
                                     <div style={styles.sourceTag}>
                                         Source: {locationSource === 'exif' ? 'Photo Metadata' : 'Browser GPS'}
                                     </div>
@@ -386,8 +457,10 @@ const styles = {
 
     locRow: { display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '0.75rem' },
     input: { padding: '1rem', borderRadius: '0.75rem', border: '2px solid #e2e8f0', background: '#f8fafc', fontWeight: 600, width: '100%' },
-    gpsBtn: { padding: '1rem', borderRadius: '0.75rem', border: 'none', background: '#1e293b', color: 'white', fontWeight: 700, cursor: 'pointer' },
+    gpsBtn: { padding: '1rem', borderRadius: '0.75rem', border: 'none', background: '#1e293b', color: 'white', fontWeight: 700, cursor: 'pointer', transition: 'all 0.3s', minWidth: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+    gpsBtnLoading: { background: '#3b82f6', animation: 'pulse-blue 1.5s infinite' },
     sourceTag: { fontSize: '0.75rem', color: '#10b981', fontWeight: 700, marginTop: '0.5rem' },
+    addressTag: { fontSize: '0.85rem', color: '#475569', fontWeight: 600, marginTop: '0.5rem', background: '#f1f5f9', padding: '0.5rem', borderRadius: '0.5rem' },
 
     textArea: { width: '100%', padding: '1rem', borderRadius: '0.75rem', border: '2px solid #e2e8f0', minHeight: '100px', outline: 'none', fontFamily: 'inherit' },
     error: { background: '#fef2f2', color: '#dc2626', padding: '1rem', borderRadius: '0.75rem', marginBottom: '1.5rem', fontSize: '0.9rem', fontWeight: 600 },
