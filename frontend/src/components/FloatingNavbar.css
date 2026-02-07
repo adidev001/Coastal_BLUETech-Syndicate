@@ -1,0 +1,242 @@
+/* Floating Navbar - Apple Liquid Glass Design */
+.floating-navbar {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    padding: 0 1rem;
+}
+
+.floating-navbar-container {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    /* Apple-style frosted glass */
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 22px;
+    padding: 6px 8px;
+    /* Liquid shadow effect */
+    box-shadow:
+        0 2px 8px rgba(0, 0, 0, 0.04),
+        0 8px 24px rgba(0, 0, 0, 0.08),
+        0 0 0 0.5px rgba(0, 0, 0, 0.04),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+/* Logo */
+.floating-navbar-logo {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 8px 14px;
+    text-decoration: none;
+    border-right: 1px solid rgba(0, 0, 0, 0.08);
+    margin-right: 4px;
+}
+
+.logo-icon {
+    font-size: 1.25rem;
+}
+
+.logo-text {
+    font-weight: 700;
+    font-size: 0.8rem;
+    color: #1d1d1f;
+    letter-spacing: -0.01em;
+}
+
+/* Nav Items Container */
+.floating-navbar-items {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+/* Individual Nav Item */
+.floating-nav-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
+    border-radius: 14px;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.875rem;
+    color: #86868b;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.floating-nav-item:hover {
+    color: #1d1d1f;
+    background: rgba(0, 0, 0, 0.04);
+}
+
+.floating-nav-item.active {
+    color: #0071e3;
+}
+
+/* Active Indicator - Liquid Blob */
+.nav-indicator {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 113, 227, 0.08);
+    border-radius: 14px;
+    z-index: -1;
+    /* Subtle inner glow */
+    box-shadow: inset 0 0 0 1px rgba(0, 113, 227, 0.1);
+}
+
+/* Icon Styling */
+.nav-icon {
+    flex-shrink: 0;
+    opacity: 0.9;
+}
+
+.nav-label {
+    white-space: nowrap;
+}
+
+/* Tubelight Glow - Apple Style */
+.tubelight-glow {
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+
+.glow-bar {
+    width: 20px;
+    height: 3px;
+    background: linear-gradient(90deg, #007aff, #5856d6);
+    border-radius: 3px;
+    margin: 0 auto;
+    opacity: 0.9;
+}
+
+.glow-blur-1 {
+    position: absolute;
+    width: 28px;
+    height: 12px;
+    background: rgba(0, 122, 255, 0.25);
+    border-radius: 50%;
+    filter: blur(6px);
+    top: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.glow-blur-2 {
+    position: absolute;
+    width: 16px;
+    height: 8px;
+    background: rgba(88, 86, 214, 0.15);
+    border-radius: 50%;
+    filter: blur(4px);
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+/* Auth Section */
+.floating-navbar-auth {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-left: 8px;
+    margin-left: 4px;
+    border-left: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.user-greeting {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #1d1d1f;
+    padding: 0 6px;
+}
+
+.floating-logout-btn,
+.floating-login-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    font-weight: 500;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    text-decoration: none;
+    border: none;
+}
+
+.floating-logout-btn {
+    background: rgba(255, 59, 48, 0.1);
+    color: #ff3b30;
+}
+
+.floating-logout-btn:hover {
+    background: rgba(255, 59, 48, 0.15);
+    transform: scale(1.02);
+}
+
+.floating-login-btn {
+    background: #0071e3;
+    color: white;
+}
+
+.floating-login-btn:hover {
+    background: #0077ed;
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(0, 113, 227, 0.3);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .floating-navbar {
+        bottom: 12px;
+        left: 8px;
+        right: 8px;
+        transform: none;
+        padding: 0;
+    }
+
+    .floating-navbar-container {
+        width: 100%;
+        justify-content: space-around;
+        padding: 8px 12px;
+        border-radius: 18px;
+    }
+
+    .floating-nav-item {
+        padding: 10px 14px;
+        border-radius: 12px;
+    }
+
+    .floating-navbar-auth {
+        border-left: none;
+        padding-left: 4px;
+        margin-left: 0;
+    }
+
+    .floating-logout-btn,
+    .floating-login-btn {
+        padding: 10px;
+        border-radius: 10px;
+    }
+}
+
+/* Ensure light mode always */
+.floating-navbar-container {
+    color-scheme: light;
+}
+
+/* Add padding to main content to account for floating navbar */
+body {
+    padding-bottom: 5.5rem;
+}
