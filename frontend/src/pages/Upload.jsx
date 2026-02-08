@@ -1,6 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import Webcam from 'react-webcam';
+import { useDropzone } from 'react-dropzone';
 import { InfinityLoader } from '../components/ui/loader-13';
 
 const Upload = ({ apiUrl = 'http://localhost:8000' }) => {
@@ -18,17 +20,67 @@ const Upload = ({ apiUrl = 'http://localhost:8000' }) => {
 
     // Refs
     const fileInputRef = useRef(null);
-    const cameraInputRef = useRef(null);
+    const webcamRef = useRef(null);
+    // Camera state
+    const [showCamera, setShowCamera] = useState(false);
 
     // Handlers
-    const handleFileChange = (e) => {
-        const file = e.target.files[0];
+    const handleFile = useCallback((file) => {
         if (file) {
             setSelectedFile(file);
             setImagePreview(URL.createObjectURL(file));
             extractGPS(file);
         }
+    }, []);
+
+    const handleFileChange = (e) => {
+        handleFile(e.target.files[0]);
     };
+
+    const onDrop = useCallback((acceptedFiles) => {
+        if (acceptedFiles?.length > 0) {
+            handleFile(acceptedFiles[0]);
+        }
+    }, [handleFile]);
+
+    const { getRootProps, getInputProps, isDragActive } = useDropzone({
+        onDrop,
+        accept: { 'image/*': [] },
+        multiple: false,
+        noClick: false // Allow clicking to open file dialog
+    });
+
+    const captureCamera = useCallback(() => {
+        const imageSrc = webcamRef.current.getScreenshot();
+        if (imageSrc) {
+            fetch(imageSrc)
+                .then(res => res.blob())
+                .then(blob => {
+                    const file = new File([blob], "camera-capture.jpg", { type: "image/jpeg" });
+                    handleFile(file);
+                    setShowCamera(false);
+                });
+        }
+    }, [webcamRef, handleFile]);
+
+    // Paste handler
+    useEffect(() => {
+        const handlePaste = (e) => {
+            if (e.clipboardData && e.clipboardData.items) {
+                const items = e.clipboardData.items;
+                for (let i = 0; i < items.length; i++) {
+                    if (items[i].type.indexOf("image") !== -1) {
+                        const file = items[i].getAsFile();
+                        handleFile(file);
+                        break;
+                    }
+                }
+            }
+        };
+
+        window.addEventListener('paste', handlePaste);
+        return () => window.removeEventListener('paste', handlePaste);
+    }, [handleFile]);
 
     const extractGPS = async (file) => {
         setIsExtracting(true);
@@ -157,7 +209,12 @@ const Upload = ({ apiUrl = 'http://localhost:8000' }) => {
                             <div style={styles.resGrid}>
                                 <div style={styles.resItem}>
                                     <span style={styles.resSmallLabel}>Confidence</span>
-                                    <span style={styles.resSmallVal}>{uploadResult.confidence ? (uploadResult.confidence * 100).toFixed(1) : '0'}%</span>
+                                    <span style={{
+                                        ...styles.resSmallVal,
+                                        color: getConfidenceColor(uploadResult.confidence)
+                                    }}>
+                                        {getConfidenceLevel(uploadResult.confidence)}
+                                    </span>
                                 </div>
                                 <div style={styles.resItem}>
                                     <span style={styles.resSmallLabel}>Latitude</span>
@@ -168,6 +225,26 @@ const Upload = ({ apiUrl = 'http://localhost:8000' }) => {
                                     <span style={styles.resSmallVal}>{uploadResult.longitude ? uploadResult.longitude.toFixed(4) : '0.0000'}</span>
                                 </div>
                             </div>
+
+                            {/* Analysis Details Dropdown */}
+                            {/* Analysis Details Dropdown */}
+                            {uploadResult.analysis_details && (
+                                <details style={styles.detailsSection} className="animate-fade-in">
+                                    <summary style={styles.summaryHeader}>
+                                        <span>🧠 View Model Analysis</span>
+                                        <span style={styles.summaryIcon}>▼</span>
+                                    </summary>
+                                    <div style={styles.detailsContent}>
+                                        <div style={styles.detailRow}>
+                                            <div style={styles.detailLabel}>👁️ CLIP Vision</div>
+                                            <div style={styles.detailValue}>
+                                                {uploadResult.analysis_details.clip.label}
+                                                <span style={styles.detailSub}>({(uploadResult.analysis_details.clip.confidence * 100).toFixed(1)}%)</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </details>
+                            )}
                         </div>
 
                         <div style={styles.actionGroup}>
@@ -185,37 +262,67 @@ const Upload = ({ apiUrl = 'http://localhost:8000' }) => {
                     <div style={styles.uploadCard} className="premium-card animate-slide-up">
                         <form onSubmit={handleSubmit}>
                             <div style={styles.formGroup}>
-                                <label style={styles.label}>1. Snap or Upload Photo</label>
-                                <div style={styles.uploadOptions}>
-                                    <button type="button" onClick={() => cameraInputRef.current.click()} style={styles.optBtn}>
-                                        <span>📷</span> Camera
-                                    </button>
-                                    <button type="button" onClick={() => fileInputRef.current.click()} style={styles.optBtn}>
-                                        <span>📁</span> Gallery
-                                    </button>
-                                </div>
+                                <label style={styles.label}>1. Snap, Scan, or Upload</label>
 
-                                <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} style={{ display: 'none' }} onChange={handleFileChange} />
-                                <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} />
-
-                                <div style={{
+                                <div {...getRootProps()} style={{
                                     ...styles.dropZone,
-                                    ...(imagePreview ? styles.dropZoneActive : {})
+                                    ...(isDragActive ? styles.dropZoneActive : {}),
+                                    outline: 'none',
+                                    cursor: 'pointer'
                                 }}>
+                                    <input {...getInputProps()} />
+
                                     {imagePreview ? (
                                         <div style={styles.previewContainer}>
                                             <img src={imagePreview} alt="Preview" style={styles.preview} />
-                                            <button type="button" style={styles.removeBtn} onClick={() => { setImagePreview(null); setSelectedFile(null); }}>✕ Remove</button>
+                                            <button type="button" style={styles.removeBtn} onClick={(e) => {
+                                                e.stopPropagation();
+                                                setImagePreview(null);
+                                                setSelectedFile(null);
+                                            }}>✕ Remove</button>
                                         </div>
                                     ) : (
                                         <div style={styles.dropContent}>
                                             <div style={styles.dropIcon}>☁️</div>
-                                            <p>Tap camera to take photo or gallery to choose</p>
+                                            <p style={{ marginBottom: '1rem', fontWeight: 600, color: '#64748b' }}>
+                                                Drag & Drop, Paste (Ctrl+V), or Click to Upload
+                                            </p>
+
+                                            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginTop: '1rem' }}>
+                                                <button type="button" onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setShowCamera(true);
+                                                }} style={styles.optBtn}>
+                                                    <span>📷</span> Use Camera
+                                                </button>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
                                 {isExtracting && <div style={styles.status}>🕒 Analyzing image metadata...</div>}
                             </div>
+
+                            {/* Camera Modal */}
+                            {showCamera && (
+                                <div style={styles.cameraModal}>
+                                    <div style={styles.cameraContainer}>
+                                        <Webcam
+                                            audio={false}
+                                            ref={webcamRef}
+                                            screenshotFormat="image/jpeg"
+                                            style={{ width: '100%', borderRadius: '1rem' }}
+                                        />
+                                        <div style={styles.cameraControls}>
+                                            <button type="button" onClick={captureCamera} className="btn-primary" style={{ flex: 1 }}>
+                                                📸 Capture
+                                            </button>
+                                            <button type="button" onClick={() => setShowCamera(false)} style={styles.secondaryBtn}>
+                                                ✕ Cancel
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             <div style={styles.formGroup}>
                                 <label style={styles.label}>2. Verify Location</label>
@@ -255,7 +362,7 @@ const Upload = ({ apiUrl = 'http://localhost:8000' }) => {
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     );
 };
 
@@ -308,7 +415,36 @@ const styles = {
     resSmallVal: { fontWeight: 800, fontSize: '1rem' },
 
     actionGroup: { display: 'flex', gap: '0.75rem', flexWrap: 'wrap' },
-    secondaryBtn: { padding: '1rem', borderRadius: '0.75rem', border: '2px solid #e2e8f0', color: '#1e293b', textDecoration: 'none', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, minWidth: '150px' }
+    secondaryBtn: { padding: '1rem', borderRadius: '0.75rem', border: '2px solid #e2e8f0', color: '#1e293b', textDecoration: 'none', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, minWidth: '150px', cursor: 'pointer', background: 'white' },
+
+    cameraModal: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' },
+    cameraContainer: { background: 'white', padding: '1rem', borderRadius: '1.5rem', width: '100%', maxWidth: '500px' },
+    cameraControls: { display: 'flex', gap: '1rem', marginTop: '1rem' },
+
+    // Details Section
+    detailsSection: { marginTop: '1.5rem', borderTop: '1px solid #e2e8f0', paddingTop: '1rem' },
+    summaryHeader: { cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontWeight: 700, color: '#475569', listStyle: 'none', padding: '0.5rem 0' },
+    summaryIcon: { fontSize: '0.8rem', opacity: 0.5 },
+    detailsContent: { padding: '1rem', background: '#f8fafc', borderRadius: '0.75rem', marginTop: '0.5rem', fontSize: '0.9rem' },
+    detailRow: { display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' },
+    detailLabel: { fontWeight: 600, color: '#64748b' },
+    detailValue: { fontWeight: 700, color: '#0f172a' },
+    detailSub: { fontWeight: 400, color: '#94a3b8', marginLeft: '0.5rem', fontSize: '0.8rem' },
+    detailDivider: { height: '1px', background: '#e2e8f0', margin: '0.5rem 0' }
+};
+
+// Helper for confidence color
+const getConfidenceColor = (conf) => {
+    if (conf >= 0.85) return '#16a34a'; // High - Green
+    if (conf >= 0.60) return '#d97706'; // Med - Amber
+    return '#dc2626'; // Low - Red
+};
+
+// Helper for confidence text
+const getConfidenceLevel = (conf) => {
+    if (conf >= 0.85) return 'High';
+    if (conf >= 0.60) return 'Medium';
+    return 'Low';
 };
 
 export default Upload;

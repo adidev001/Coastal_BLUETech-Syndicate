@@ -13,6 +13,7 @@ bcrypt==4.1.2
 # AI-based classification (CLIP)
 transformers>=4.35.2
 torch>=2.1.1
+tensorflow>=2.15.0
 
 # Email validation
 pydantic[email]

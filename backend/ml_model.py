@@ -20,12 +20,34 @@ try:
     print("✅ CLIP model loaded successfully!")
 except ImportError:
     USE_CLIP = False
-    print("⚠️ CLIP not available. Installing...")
+    print("⚠️ CLIP not available.")
+
+
 
 CATEGORIES = ['plastic', 'oil_spill', 'other_solid_waste', 'marine_debris', 'no_waste']
 
+# Master Mapping: detailed_label -> app_category
+# This ensures both models map granular detections to the same 5 core categories
+UNIFIED_CLASS_MAP = {
+    # Keras specific
+    'cardboard': 'other_solid_waste',
+    'clean_water': 'no_waste',
+    'glass': 'other_solid_waste',
+    'marine_trash': 'marine_debris',
+    'metal': 'other_solid_waste',
+    'oil_spill': 'oil_spill',
+    'paper': 'other_solid_waste',
+    'plastic': 'plastic',
+    
+    # CLIP specific / General
+    'trash': 'other_solid_waste',
+    'debris': 'marine_debris',
+    'oil': 'oil_spill',
+    'clean': 'no_waste'
+}
+
 def classify_pollution(image_path: str) -> tuple:
-    """Classify pollution using CLIP AI."""
+    """Classify pollution using both CLIP and Keras models (Champion logic)."""
     if not os.path.exists(image_path):
         raise FileNotFoundError(f"Image not found: {image_path}")
     
@@ -34,65 +56,101 @@ def classify_pollution(image_path: str) -> tuple:
         with Image.open(image_path) as img:
             img.verify()
     except:
-        return "other_solid_waste", 0.0
+        return {
+            "final_label": "other_solid_waste",
+            "final_confidence": 0.0,
+            "model_used": "Error",
+            "details": None
+        }
 
-    if USE_CLIP:
-        try:
-            image = Image.open(image_path).convert("RGB")
-            
-            # Labels designed to only match OBVIOUS pollution
-            # Order: plastic, oil_spill, solid_waste, marine_debris, no_waste
-            labels = [
-                "plastic bottles and plastic bags littering a beach with visible garbage",
-                "oil spill petroleum contamination dark brown black murky polluted water",
-                "garbage pile trash heap rubbish dump on sandy beach",
-                "fishing nets ropes tangled in water or on beach shore",
-                "natural clean ocean water waves sea view without any garbage or pollution"
-            ]
-            
-            inputs = processor(text=labels, images=image, return_tensors="pt", padding=True)
-            
-            with torch.no_grad():
-                outputs = model(**inputs)
-                probs = outputs.logits_per_image.softmax(dim=1)[0]
-            
-            # Get all probabilities
-            all_probs = probs.tolist()
-            idx = probs.argmax().item()
-            confidence = probs[idx].item()
-            no_waste_prob = all_probs[4]  # no_waste is index 4
-            
-            # Map back to category keys
-            category_map = {
-                0: "plastic",
-                1: "oil_spill",
-                2: "other_solid_waste",
-                3: "marine_debris",
-                4: "no_waste"
-            }
-            
-            predicted = category_map[idx]
-            
-            # CONFIDENCE THRESHOLD: If confidence is below 85% for pollution categories,
-            # default to no_waste (to avoid false positives)
-            if predicted != "no_waste" and confidence < 0.85:
-                # Check if no_waste probability is reasonable (>15%)
-                if no_waste_prob > 0.15:
-                    print(f"🧠 Low confidence ({confidence*100:.1f}%) - defaulting to no_waste")
-                    predicted = "no_waste"
-                    confidence = no_waste_prob
-            
-            print(f"🧠 CLIP Prediction: {predicted} ({confidence*100:.1f}%)")
-            
-            return predicted, round(confidence, 4)
-            
-        except Exception as e:
-            print(f"CLIP Error: {e}")
-            return "other_solid_waste", 0.5
+
+
+
+def predict_clip(image_path: str):
+    """Predict using OpenAI CLIP model."""
+    if not USE_CLIP:
+        return None, 0.0
+        
+    try:
+        image = Image.open(image_path).convert("RGB")
+        
+        # Extended labels to match Keras granularity
+        # We start with the specific prompts, then map their indices to categories
+        prompts = [
+            "plastic bottles and plastic bags littering a beach",       # 0: plastic
+            "oil spill petroleum contamination on water",               # 1: oil_spill
+            "cardboard boxes and paper waste on beach",                 # 2: cardboard -> other_solid_waste
+            "glass bottles and broken glass shards on sand",            # 3: glass -> other_solid_waste
+            "metal cans and rusty metal scrap on beach",                # 4: metal -> other_solid_waste
+            "fishing nets and ropes tangled in water",                  # 5: marine_debris
+            "garbage pile mixed trash rubbish dump",                    # 6: trash -> other_solid_waste
+            "natural clean ocean water waves sea view"                  # 7: no_waste
+        ]
+        
+        # Map prompt index to App Category
+        prompt_to_category = {
+            0: "plastic",
+            1: "oil_spill",
+            2: "other_solid_waste",
+            3: "other_solid_waste",
+            4: "other_solid_waste",
+            5: "marine_debris",
+            6: "other_solid_waste",
+            7: "no_waste"
+        }
+        
+        inputs = processor(text=prompts, images=image, return_tensors="pt", padding=True)
+        
+        with torch.no_grad():
+            outputs = model(**inputs)
+            probs = outputs.logits_per_image.softmax(dim=1)[0]
+        
+        # Get all probabilities
+        all_probs = probs.tolist()
+        idx = probs.argmax().item()
+        confidence = probs[idx].item()
+        no_waste_prob = all_probs[7]  # no_waste is index 7 now
+        
+        predicted = prompt_to_category[idx]
+        
+        # Confidence penalties
+        if predicted != "no_waste" and confidence < 0.85:
+            if no_waste_prob > 0.15:
+                predicted = "no_waste"
+                confidence = no_waste_prob
+        
+        original_prompt_concept = ["plastic", "oil", "cardboard", "glass", "metal", "debris", "trash", "clean"][idx]
+        print(f"🧠 CLIP Prediction: {original_prompt_concept} -> {predicted} ({confidence*100:.1f}%)")
+        return predicted, confidence
+
+    except Exception as e:
+        print(f"❌ CLIP Error: {e}")
+        return None, 0.0
+
+def classify_pollution(image_path: str) -> dict:
+    """Classify pollution using CLIP model."""
+    if not os.path.exists(image_path):
+        raise FileNotFoundError(f"Image not found: {image_path}")
     
-    else:
-        # Fallback if CLIP fails (should not happen after install)
-        return "other_solid_waste", 0.5
+    # Get predictions from CLIP
+    clip_label, clip_conf = predict_clip(image_path)
+    
+    # Default fallback
+    final_label = clip_label if clip_label else "other_solid_waste"
+    final_conf = clip_conf if clip_conf else 0.0
+    model_used = "CLIP" if clip_label else "None"
+
+    print(f"🏆 MODEL: {model_used} | {final_label} ({final_conf*100:.1f}%)")
+    
+    # Return structured result
+    return {
+        "final_label": final_label,
+        "final_confidence": round(final_conf, 4),
+        "model_used": model_used,
+        "details": {
+            "clip": {"label": clip_label, "confidence": round(clip_conf, 4) if clip_conf else 0}
+        }
+    }
 
 
 def extract_gps_from_exif(image_path: str) -> dict:
@@ -160,14 +218,20 @@ def get_pollution_info(ptype: str) -> dict:
 
 def analyze_image(image_path: str) -> dict:
     """Wrapper for main classification logic."""
-    label, confidence = classify_pollution(image_path)
+    result = classify_pollution(image_path)
+    
+    label = result["final_label"]
+    confidence = result["final_confidence"]
+    
     info = get_pollution_info(label)
     return {
         "label": label,
         "confidence": confidence,
         "pollution_name": info["name"],
         "pollution_icon": info["icon"],
-        "pollution_color": info["color"]
+        "pollution_color": info["color"],
+        "analysis_details": result["details"],
+        "model_used": result["model_used"]
     }
 
 

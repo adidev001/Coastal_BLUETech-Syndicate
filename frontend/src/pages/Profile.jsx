@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import html2canvas from 'html2canvas';
+import { Share2, Download, X, Linkedin, Twitter, MessageCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const getBadge = (points) => {
@@ -24,6 +26,11 @@ const Profile = ({ apiUrl = 'http://localhost:8000' }) => {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('reports');
 
+    // Share Modal State
+    const [showShareModal, setShowShareModal] = useState(false);
+    const [badgeImageBlob, setBadgeImageBlob] = useState(null);
+    const [badgeImageUrl, setBadgeImageUrl] = useState(null);
+
     useEffect(() => {
         if (refreshUser) refreshUser();
     }, [refreshUser]);
@@ -42,6 +49,77 @@ const Profile = ({ apiUrl = 'http://localhost:8000' }) => {
 
         fetchMyReports();
     }, [apiUrl]);
+
+    const handleShare = async () => {
+        const badgeElement = document.getElementById('share-badge');
+        if (!badgeElement) return;
+
+        // Temporarily show the badge for capture
+        badgeElement.style.display = 'flex';
+
+        try {
+            const canvas = await html2canvas(badgeElement, {
+                backgroundColor: null,
+                scale: 2
+            });
+
+            // Hide it again
+            badgeElement.style.display = 'none';
+
+            canvas.toBlob((blob) => {
+                if (blob) {
+                    const url = URL.createObjectURL(blob);
+                    setBadgeImageBlob(blob);
+                    setBadgeImageUrl(url);
+                    setShowShareModal(true);
+                }
+            }, 'image/png');
+
+        } catch (err) {
+            console.error('Badge generation failed', err);
+            badgeElement.style.display = 'none';
+        }
+    };
+
+    const downloadBadge = () => {
+        if (!badgeImageUrl) return;
+        const link = document.createElement('a');
+        link.download = 'coastal-guardian-badge.png';
+        link.href = badgeImageUrl;
+        link.click();
+    };
+
+    const shareToSocial = (platform) => {
+        const text = `I've earned ${user.points} points reporting coastal pollution with Coastal Guardian! 🌊 Join me in cleaning our oceans. #CoastalGuardian #OceanCleanup`;
+        const url = encodeURIComponent(window.location.origin); // Or your app's public URL
+
+        let shareUrl = '';
+        switch (platform) {
+            case 'twitter':
+                shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${url}`;
+                break;
+            case 'linkedin':
+                // LinkedIn only allows sharing URL, not pre-filled text easily for personal profiles via API without SDK
+                // But we can try the share article format
+                shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${url}`;
+                break;
+            case 'whatsapp':
+                shareUrl = `https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`;
+                break;
+            default:
+                return;
+        }
+        window.open(shareUrl, '_blank', 'width=600,height=400');
+    };
+
+    const closeModal = () => {
+        setShowShareModal(false);
+        // Clean up URL object to prevent memory leaks
+        if (badgeImageUrl) {
+            URL.revokeObjectURL(badgeImageUrl);
+            setBadgeImageUrl(null);
+        }
+    };
 
     if (!user) return null;
 
@@ -66,7 +144,25 @@ const Profile = ({ apiUrl = 'http://localhost:8000' }) => {
                             <div style={{ ...styles.badge, background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0' }}>
                                 💎 {user.points || 0} Points
                             </div>
+                            <button onClick={handleShare} style={styles.shareBtn}>
+                                📤 Share Impact
+                            </button>
                         </div>
+                    </div>
+                </div>
+
+                {/* Hidden Badge for Sharing */}
+                <div id="share-badge" style={styles.shareBadge}>
+                    <div style={styles.shareBadgeInner}>
+                        <div style={styles.shareBadgeHeader}>Coastal Guardian</div>
+                        <div style={styles.shareBadgeAvatar}>{user.full_name?.charAt(0) || 'U'}</div>
+                        <div style={styles.shareBadgeName}>{user.full_name}</div>
+                        <div style={styles.shareBadgeRank}>{getBadge(user.points).name}</div>
+                        <div style={styles.shareBadgePoints}>
+                            <span>💎</span>
+                            <span>{user.points || 0} Points</span>
+                        </div>
+                        <div style={styles.shareBadgeFooter}>Fighting for Cleaner Oceans</div>
                     </div>
                 </div>
 
@@ -195,6 +291,42 @@ const Profile = ({ apiUrl = 'http://localhost:8000' }) => {
                     </div>
                 )}
             </div>
+
+            {/* Share Modal */}
+            {showShareModal && (
+                <div style={styles.modalOverlay} onClick={closeModal} className="animate-fade-in">
+                    <div style={styles.modalContent} onClick={e => e.stopPropagation()} className="animate-slide-up">
+                        <button style={styles.closeBtn} onClick={closeModal}>
+                            <X size={24} />
+                        </button>
+
+                        <h2 style={styles.modalTitle}>Share Active Impact! 🌍</h2>
+                        <p style={styles.modalSubtitle}>Inspire others by sharing your contribution.</p>
+
+                        <div style={styles.previewContainer}>
+                            {badgeImageUrl && <img src={badgeImageUrl} alt="Badge" style={styles.previewImage} />}
+                        </div>
+
+                        <div style={styles.shareActions}>
+                            <button onClick={downloadBadge} style={styles.actionBtn}>
+                                <Download size={20} /> Download Image
+                            </button>
+
+                            <div style={styles.socialRow}>
+                                <button onClick={() => shareToSocial('twitter')} style={{ ...styles.socialBtn, background: '#1DA1F2', color: 'white' }}>
+                                    <Twitter size={20} /> Twitter
+                                </button>
+                                <button onClick={() => shareToSocial('linkedin')} style={{ ...styles.socialBtn, background: '#0A66C2', color: 'white' }}>
+                                    <Linkedin size={20} /> LinkedIn
+                                </button>
+                                <button onClick={() => shareToSocial('whatsapp')} style={{ ...styles.socialBtn, background: '#25D366', color: 'white' }}>
+                                    <MessageCircle size={20} /> WhatsApp
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     );
 };
@@ -252,6 +384,100 @@ const styles = {
         borderRadius: '2rem',
         fontSize: '0.9rem',
         fontWeight: '700',
+    },
+    shareBtn: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '0.5rem',
+        padding: '0.35rem 1rem',
+        background: '#0f172a',
+        color: 'white',
+        borderRadius: '2rem',
+        fontSize: '0.9rem',
+        fontWeight: '700',
+        border: 'none',
+        cursor: 'pointer',
+        transition: 'all 0.2s',
+    },
+    shareBadge: {
+        position: 'fixed',
+        top: '-9999px',
+        left: '-9999px',
+        width: '400px',
+        height: '500px',
+        background: 'linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%)',
+        display: 'none', // Hidden by default, toggled via JS
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 9999,
+        padding: '2rem',
+    },
+    shareBadgeInner: {
+        background: 'rgba(255, 255, 255, 0.95)',
+        backdropFilter: 'blur(10px)',
+        borderRadius: '1.5rem',
+        padding: '2.5rem',
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
+        textAlign: 'center',
+    },
+    shareBadgeHeader: {
+        fontSize: '0.9rem',
+        textTransform: 'uppercase',
+        letterSpacing: '2px',
+        fontWeight: '800',
+        color: '#64748b',
+        marginBottom: '2rem',
+    },
+    shareBadgeAvatar: {
+        width: '100px',
+        height: '100px',
+        borderRadius: '50%',
+        background: 'linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%)',
+        color: 'white',
+        fontSize: '3.5rem',
+        fontWeight: 'bold',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: '1rem',
+        boxShadow: '0 10px 15px -3px rgba(14, 165, 233, 0.3)',
+    },
+    shareBadgeName: {
+        fontSize: '2rem',
+        fontWeight: '900',
+        color: '#0f172a',
+        marginBottom: '0.25rem',
+    },
+    shareBadgeRank: {
+        fontSize: '1.1rem',
+        color: '#0ea5e9',
+        fontWeight: '700',
+        marginBottom: '1.5rem',
+    },
+    shareBadgePoints: {
+        background: '#f0fdf4',
+        color: '#15803d',
+        padding: '0.75rem 2rem',
+        borderRadius: '1rem',
+        fontSize: '1.5rem',
+        fontWeight: '800',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.5rem',
+        marginBottom: '3rem',
+        border: '1px solid #bbf7d0',
+    },
+    shareBadgeFooter: {
+        fontSize: '0.8rem',
+        color: '#94a3b8',
+        fontWeight: '600',
     },
     tabContainer: {
         display: 'flex',
@@ -422,6 +648,105 @@ const styles = {
         color: '#64748b',
         fontWeight: '600',
         textAlign: 'right',
+    },
+
+    // Modal Styles
+    modalOverlay: {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'rgba(15, 23, 42, 0.8)',
+        backdropFilter: 'blur(5px)',
+        zIndex: 10000,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '1rem',
+    },
+    modalContent: {
+        background: 'white',
+        borderRadius: '1.5rem',
+        padding: '2rem',
+        maxWidth: '500px',
+        width: '100%',
+        position: 'relative',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+        textAlign: 'center',
+    },
+    closeBtn: {
+        position: 'absolute',
+        top: '1rem',
+        right: '1rem',
+        background: 'none',
+        border: 'none',
+        cursor: 'pointer',
+        color: '#94a3b8',
+        padding: '0.5rem',
+        borderRadius: '50%',
+        transition: 'all 0.2s',
+    },
+    modalTitle: {
+        fontSize: '1.5rem',
+        fontWeight: '800',
+        color: '#0f172a',
+        marginBottom: '0.5rem',
+    },
+    modalSubtitle: {
+        color: '#64748b',
+        marginBottom: '1.5rem',
+    },
+    previewContainer: {
+        background: '#f1f5f9',
+        borderRadius: '1rem',
+        padding: '1rem',
+        marginBottom: '1.5rem',
+        display: 'flex',
+        justifyContent: 'center',
+    },
+    previewImage: {
+        maxWidth: '100%',
+        maxHeight: '300px',
+        borderRadius: '0.5rem',
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+    },
+    shareActions: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '1rem',
+    },
+    actionBtn: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '0.5rem',
+        padding: '0.75rem',
+        background: '#0f172a',
+        color: 'white',
+        borderRadius: '0.75rem',
+        fontWeight: '700',
+        border: 'none',
+        cursor: 'pointer',
+        fontSize: '1rem',
+    },
+    socialRow: {
+        display: 'flex',
+        gap: '0.75rem',
+        justifyContent: 'center',
+    },
+    socialBtn: {
+        flex: 1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '0.5rem',
+        padding: '0.75rem',
+        borderRadius: '0.75rem',
+        fontWeight: '600',
+        border: 'none',
+        cursor: 'pointer',
+        fontSize: '0.9rem',
     }
 };
 
