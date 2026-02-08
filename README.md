@@ -131,5 +131,11 @@ Default admin credentials for dashboard access:
   > *Research utilized for understanding beach litter composition and structuring our target dataset.*
 
 ---
+**Team mate--**
+**Jahnavi Singh**
+**Devansh Rai**
+**Krish Gupta**
+**Kartikey Jaiswal**
+
 
 **Built for a Cleaner Future.** 🐋
