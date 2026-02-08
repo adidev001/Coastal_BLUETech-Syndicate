@@ -1,4 +1,3 @@
-
 # 🌊 Coastal Guardian
 
 **Coastal Guardian** is a modern web platform designed to empower communities in the fight against marine pollution. By combining AI vision with gamification, we turn every citizen into an active protector of our coastlines.
@@ -7,6 +6,7 @@
 
 ### 🧠 AI-Powered Detection
 Uses **OpenAI's CLIP Model** to intelligently analyze uploaded images. It doesn't just guess; it understands the context to identify:
+
 - **Plastic Waste** (Bottles, bags)
 - **Oil Spills** (Surface contamination)
 - **Marine Debris** (Nets, ghost gear)
@@ -35,18 +35,29 @@ Uses **OpenAI's CLIP Model** to intelligently analyze uploaded images. It doesn'
 ## 🛠️ Tech Stack
 
 ### Frontend
-- [**React 18**](https://react.dev/)
-- [**Tailwind CSS**](https://tailwindcss.com/)
-- [**Lucide React**](https://lucide.dev/)
-- [**React Leaflet**](https://react-leaflet.js.org/)
-- [**HTML2Canvas**](https://html2canvas.hertzen.com/)
+- **React 18**
+- **Tailwind CSS**
+- **Lucide React**
+- **React Leaflet**
+- **HTML2Canvas**
 
 ### Backend
-- [**FastAPI**](https://fastapi.tiangolo.com/)
-- [**OpenAI CLIP**](https://github.com/openai/CLIP)
-- [**SQLite**](https://www.sqlite.org/index.html)
-- [**Pillow (PIL)**](https://python-pillow.org/)
-- [**JWT**](https://jwt.io/) & [**BCrypt**](https://pypi.org/project/bcrypt/)
+- **FastAPI**
+- **OpenAI CLIP**
+- **SQLite**
+- **Pillow (PIL)**
+- **JWT** & **BCrypt**
+
+### Hybrid AI Research Pipeline
+The `tech/` folder contains an advanced experimental pipeline that combines a **CNN classifier** with **CLIP** in a series architecture.
+
+Instead of relying on a single model, this system merges the strengths of both:
+
+- CNN handles detailed visual feature extraction
+- CLIP provides contextual and semantic understanding
+- Final predictions are derived from the strongest combined signal
+
+This hybrid setup improves accuracy in real coastal environments where lighting, angles, and clutter can vary dramatically. It represents our best-performing research model and serves as a foundation for future upgrades.
 
 ---
 
@@ -55,31 +66,29 @@ Uses **OpenAI's CLIP Model** to intelligently analyze uploaded images. It doesn'
 ```bash
 coastal-guardian/
 │
-├── 📁 backend/
-│   ├── main.py              # FastAPI app & endpoints
-│   ├── ml_model.py          # AI classification logic (CLIP)
-│   ├── database.py          # Database models & connection
-│   ├── auth.py              # Authentication handler
-│   ├── requirements.txt     # Python dependencies
-│   └── 📁 uploads/          # Image storage
+├── backend/
+│   ├── main.py
+│   ├── ml_model.py
+│   ├── database.py
+│   ├── auth.py
+│   ├── requirements.txt
+│   └── uploads/
 │
-├── 📁 frontend/
-│   ├── 📁 public/
-│   ├── 📁 src/
-│   │   ├── 📁 components/   # Reusable UI components
-│   │   ├── 📁 context/      # Auth & global state
-│   │   ├── 📁 pages/        # Application routes
-│   │   │   ├── Home.jsx
-│   │   │   ├── Map.jsx
-│   │   │   ├── Upload.jsx
-│   │   │   ├── Profile.jsx
-│   │   │   └── ...
-│   │   ├── App.js           # Main component
-│   │   └── index.css        # Global styles
-│   └── package.json         # Node dependencies
+├── frontend/
+│   ├── public/
+│   ├── src/
+│   │   ├── components/
+│   │   ├── context/
+│   │   ├── pages/
+│   │   ├── App.js
+│   │   └── index.css
+│   └── package.json
 │
-├── .env.example             # Environment template
-└── README.md                # Project documentation
+├── tech/
+│   └── hybrid_pipeline.ipynb
+│
+├── .env.example
+└── README.md
 ```
 
 ---
@@ -90,15 +99,18 @@ coastal-guardian/
 ```bash
 cd backend
 python -m venv venv
+
 # Windows:
 .\venv\Scripts\activate
+
 # Mac/Linux:
 source venv/bin/activate
 
 pip install -r requirements.txt
 python main.py
 ```
-*Server starts at `http://localhost:8000`*
+
+Server runs at: `http://localhost:8000`
 
 ### 2. Frontend Setup
 ```bash
@@ -106,36 +118,45 @@ cd frontend
 npm install
 npm start
 ```
-*App opens at `http://localhost:3000`*
+
+App opens at: `http://localhost:3000`
 
 ### 3. Admin Access
-Default admin credentials for dashboard access:
-- **Email**: `admin@coastal.com`
-- **Password**: `admin123`
+Default admin credentials:
+
+- **Email**: admin@coastal.com
+- **Password**: admin123
 
 ---
 
 ## 🔒 Privacy & Security
-- **Local-First Processing**: Images are processed securely.
-- **Data Minimization**: Only essential location data is stored for mapping purposes.
-- **Role-Based Access**: Strict separation between user and admin capabilities.
+- **Local-First Processing**: Images are processed securely
+- **Data Minimization**: Only essential location data is stored
+- **Role-Based Access**: Clear separation between user and admin permissions
 
 ---
 
 ## 🏆 Credits & Acknowledgments
 
-- **OpenAI CLIP**: [https://github.com/openai/CLIP](https://github.com/openai/CLIP)
-- **Processed Coastal Pollutant Dataset**: [https://www.kaggle.com/datasets/adidev001/procesed-again-costal-polutant](https://www.kaggle.com/datasets/adidev001/procesed-again-costal-polutant)
-  > *Dataset Credit: This project uses the public Kaggle dataset Garbage Classification V2 by sumn2u. I adapted the dataset structure/labels for my use case and trained a MobileNetV2-based model on it. The model file is compressed for easier distribution.*
-- **Beach Litter Research**: [https://www.seanoe.org/data/00858/96963/](https://www.seanoe.org/data/00858/96963/)
-  > *Research utilized for understanding beach litter composition and structuring our target dataset.*
+- OpenAI CLIP  
+  https://github.com/openai/CLIP
+
+- Processed Coastal Pollutant Dataset  
+  https://www.kaggle.com/datasets/adidev001/procesed-again-costal-polutant  
+  *Dataset Credit: Garbage Classification V2 by sumn2u. Adapted and retrained using MobileNetV2.*
+
+- Beach Litter Research  
+  https://www.seanoe.org/data/00858/96963/  
+  *Used for understanding beach litter composition and dataset structuring.*
 
 ---
-**Team mate--**
-**Jahnavi Singh**
-**Devansh Rai**
-**Krish Gupta**
-**Kartikey Jaiswal**
 
+**Team mate--**  
+Jahnavi Singh  
+Devansh Rai  
+Krish Gupta  
+Kartikey Jaiswal
+
+---
 
 **Built for a Cleaner Future.** 🐋
